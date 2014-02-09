@@ -22,6 +22,7 @@ import dmLab.attrSelection.attrImportance.Ranking;
 import dmLab.attrSelection.mcfs.framework.MCFSClassicThreads;
 import dmLab.attrSelection.mcfs.framework.MCFSFrameworkThreads;
 import dmLab.container.array.Array;
+import dmLab.container.saver.Array2File;
 
 public class MCFSRunner {
 
@@ -55,15 +56,20 @@ public class MCFSRunner {
     if (line.hasOption("projections")) {
       projections = ((Number) line.getParsedOptionValue("projections")).intValue();
     }
+    float shift = 1.0f;
+    if (line.hasOption("shift")) {
+      shift = ((Number) line.getParsedOptionValue("shift")).floatValue();
+    }
 
     System.out.println("Running:\n\tstart:\t" + start + "\n\tend:\t" + end + "\n\tseed:\t" + initialSeed
-        + "\n\tprojections:\t" + projections);
+        + "\n\tprojections:\t" + projections + "\n\tshift:\t" + shift);
     Thread.sleep(2000);
 
     Generator generator = new Generator();
     SeedAccepter accepter = new DuplicateCheck();
 
     generator.setInitialSeed(initialSeed);
+    generator.setShift(shift);
 
     NumberFormat expNameFormat = new DecimalFormat(StringUtils.repeat("0", String.valueOf(end).length()));
 
@@ -78,6 +84,19 @@ public class MCFSRunner {
     }
     File tmp = new File(tmpRoot, String.valueOf(initialSeed));
     tmp.mkdir();
+
+    File daneRoot = new File("dane");
+    if (!daneRoot.exists()) {
+      daneRoot.mkdir();
+    }
+    File dane = new File(daneRoot, String.valueOf(initialSeed));
+    dane.mkdir();
+
+    try (FileWriter writer = new FileWriter(new File(dane, "opis.txt"))) {
+      writer.write("start:\t" + start + "\nend:\t" + end + "\nseed:\t" + initialSeed
+        + "\nprojections:\t" + projections + "\nshift:\t" + shift + "\n");
+    }
+
     try {
       for (int i = start; i <= end; i++) {
         System.out.println("experiment " + i);
@@ -85,6 +104,12 @@ public class MCFSRunner {
         String expName = expNameFormat.format(i);
 
         Array array = generator.generate(i, accepter);
+
+        NumberFormat formatter = new DecimalFormat("00000");
+
+        Array2File array2File = new Array2File();
+        array2File.saveFile(array, dane.getAbsolutePath() + File.separator + "dane_" + formatter.format(i) + ".arff");
+
         MCFSFrameworkThreads mcfs = new MCFSClassicThreads();
 
         mcfs.mcfsArrays.sourceArray = array;
@@ -152,6 +177,8 @@ public class MCFSRunner {
     Options options = new Options();
     options.addOption(OptionBuilder.withArgName("seed").hasArg().withType(PatternOptionBuilder.NUMBER_VALUE)
         .withDescription("generator seed (default to system time)").create("seed"));
+    options.addOption(OptionBuilder.withArgName("shift").hasArg().withType(PatternOptionBuilder.NUMBER_VALUE)
+        .withDescription("shift)").create("shift"));
     options.addOption(OptionBuilder.withArgName("start").hasArg().withType(PatternOptionBuilder.NUMBER_VALUE)
         .withDescription("start value (default to 1)").withLongOpt("start").create("start"));
     options.addOption(OptionBuilder.withArgName("end").hasArg().withType(PatternOptionBuilder.NUMBER_VALUE)
