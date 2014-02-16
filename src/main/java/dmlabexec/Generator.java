@@ -14,13 +14,12 @@ public class Generator {
   private long initialSeed = 0;
   private int columns = 10000;
   private int observations = 100;
-  private int leftShifted = 50;
-  private int rightShifted = 50;
+  private int shifted = 100;
   private float shift = 1.0f;
 
   public Array generate(int experiment, SeedAccepter seedAccepter) throws Exception {
     // ustalamy liczbe eksperymentow, zmiennych i obserwacji
-    int n01columns = columns - leftShifted - rightShifted;
+    int n01columns = columns - shifted;
 
     // inicjujemy generatory dla kolumn
     RandomGenerator[] generators = new RandomGenerator[columns];
@@ -50,16 +49,9 @@ public class Generator {
       array.nextAttribute();
     }
     // rozklad N(0, L)
-    for (int i = n01columns + 1; i <= n01columns + leftShifted; i++) {
+    for (int i = n01columns + 1; i <= n01columns + shifted; i++) {
       array.attributes[i] = new Attribute();
-      array.attributes[i].name = "V_LS_" + i;
-      array.attributes[i].type = Attribute.NUMERIC;
-      array.nextAttribute();
-    }
-    // rozklad N(0, R)
-    for (int i = n01columns + leftShifted + 1; i <= columns; i++) {
-      array.attributes[i] = new Attribute();
-      array.attributes[i].name = "V_RS_" + i + "";
+      array.attributes[i].name = "V_S_" + i;
       array.attributes[i].type = Attribute.NUMERIC;
       array.nextAttribute();
     }
@@ -78,21 +70,11 @@ public class Generator {
         array.writeValue(i, observation, (float) generators[i - 1].nextGaussian());
       }
     }
-    // rozklad N(0, L)
-    for (int i = n01columns + 1; i <= n01columns + leftShifted; i++) {
+    // rozklad 'N(0, S)'
+    for (int i = n01columns + 1; i <= n01columns + shifted; i++) {
       for (int observation = 0; observation < observations; observation++) {
         if ((observation % 2) == 0) {
           array.writeValue(i, observation, (float) generators[i - 1].nextGaussian() - getShift());
-        } else {
-          array.writeValue(i, observation, (float) generators[i - 1].nextGaussian());
-        }
-      }
-    }
-    // rozklad N(0, R)
-    for (int i = n01columns + leftShifted + 1; i <= columns; i++) {
-      for (int observation = 0; observation < observations; observation++) {
-        if ((observation % 2) == 0) {
-          array.writeValue(i, observation, (float) generators[i - 1].nextGaussian());
         } else {
           array.writeValue(i, observation, (float) generators[i - 1].nextGaussian() + getShift());
         }
@@ -132,20 +114,12 @@ public class Generator {
     this.observations = observations;
   }
 
-  public int getLeftShifted() {
-    return leftShifted;
+  public void setShifted(int shifted) {
+    this.shifted = shifted;
   }
 
-  public void setLeftShifted(int leftShifted) {
-    this.leftShifted = leftShifted;
-  }
-
-  public int getRightShifted() {
-    return rightShifted;
-  }
-
-  public void setRightShifted(int rightShifted) {
-    this.rightShifted = rightShifted;
+  public int getShifted() {
+    return shifted;
   }
 
   public float getShift() {
