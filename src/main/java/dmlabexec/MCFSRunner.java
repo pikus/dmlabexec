@@ -29,6 +29,7 @@ import dmLab.container.saver.Array2File;
 public class MCFSRunner {
 
   public static void main(String argv[]) throws Exception {
+    argv = new String[] {"--start", "1",  "--end", "100", "--projections", "3000", "--profile", "N_50_DELTA_05_RO_04"};
     CommandLineParser parser = new PosixParser();
     CommandLine line = null;
     Options options = createOptions();
@@ -44,7 +45,7 @@ public class MCFSRunner {
     if (line.hasOption("start")) {
       start = ((Number) line.getParsedOptionValue("start")).intValue();
     }
-    int end = 100;
+    int end = Integer.MAX_VALUE;
     if (line.hasOption("end")) {
       end = ((Number) line.getParsedOptionValue("end")).intValue();
     }
@@ -73,16 +74,29 @@ public class MCFSRunner {
       contrastRatio = ((Number) line.getParsedOptionValue("contastRatio")).floatValue();
     }
 
-    System.out.println("Running:\n\tstart:\t" + start + "\n\tend:\t" + end + "\n\tseed:\t" + initialSeed
-        + "\n\tprojections:\t" + projections + "\n\tshift:\t" + shift + "\n\tcontrast ratio:\t" + contrastRatio);
-    Thread.sleep(2000);
+    MVariantProfile profile = null;
+    if (line.hasOption("profile")) {
+      profile = MVariantProfile.valueOf(line.getOptionValue("profile"));
+    }
 
-    Generator generator = new Generator();
-    SeedAccepter accepter = new DuplicateCheck();
+    String opis = null;
+    Generator generator = null;
+    if (profile != null) {
+      generator = new MVariantGenerator(profile);
+      opis = "\tstart:\t" + start + "\n\tend:\t" + end + "\n\tseed:\t" + initialSeed
+          + "\n\tprojections:\t" + projections + "\n\tcontrast ratio:\t" + contrastRatio
+          + "\n\tprofile:\t" + profile;
+    } else {
+      opis = "\tstart:\t" + start + "\n\tend:\t" + end + "\n\tseed:\t" + initialSeed
+          + "\n\tprojections:\t" + projections + "\n\tshift:\t" + shift + "\n\tcontrast ratio:\t" + contrastRatio;
+      RegularGenerator rgenerator = new RegularGenerator();
+      rgenerator.setInitialSeed(initialSeed);
+      rgenerator.setSeedAccepter(new DuplicateCheck());
+      rgenerator.setShift(shift);
+      generator = rgenerator;
+    }
 
-    generator.setInitialSeed(initialSeed);
-    generator.setShift(shift);
-
+    System.out.println("Running\n" + opis);
     NumberFormat expNameFormat = new DecimalFormat(StringUtils.repeat("0", String.valueOf(end).length()));
 
     String tst = DateFormatUtils.format(Calendar.getInstance(), "yyyy-MM-dd-HH-mm");
@@ -103,22 +117,22 @@ public class MCFSRunner {
     dane.mkdirs();
 
     try (FileWriter writer = new FileWriter(new File(dane, "opis.txt"))) {
-      writer.write("start:\t" + start + "\nend:\t" + end + "\nseed:\t" + initialSeed + "\nprojections:\t" + projections
-          + "\nshift:\t" + shift + "\ncontrast ratio:\t" + contrastRatio + "\n");
+      writer.write(opis);
     }
 
     CSVWriter all = new CSVWriter(new FileWriter(new File(dane, "exp_" + initialSeed + "_" + tst + "_all.csv")), CSVWriter.DEFAULT_SEPARATOR,
         CSVWriter.NO_QUOTE_CHARACTER);
-//    CSVWriter significant = new CSVWriter(new FileWriter(new File(dane, "exp_" + initialSeed + "_" + tst + "_sig.csv")),
-//        CSVWriter.DEFAULT_SEPARATOR, CSVWriter.NO_QUOTE_CHARACTER);
 
     try {
       for (int i = start; i <= end; i++) {
         System.out.println("experiment " + i);
 
+        File tmpDir = new File(tmp, String.valueOf(i));
+        tmpDir.mkdirs();
+
         String expName = expNameFormat.format(i);
 
-        Array array = generator.generate(i, accepter);
+        Array array = generator.generate(i);
 
         NumberFormat formatter = new DecimalFormat("00000");
 
@@ -134,7 +148,7 @@ public class MCFSRunner {
           mcfs.mcfsParams = new MCFSParams();
           mcfs.mcfsParams.setDefault();
           mcfs.mcfsParams.inputFileName = mcfs.experimentName;
-          mcfs.mcfsParams.tempFilesPATH = tmp.getAbsolutePath() + File.separator;
+          mcfs.mcfsParams.tempFilesPATH = tmpDir.getAbsolutePath() + File.separator;
           mcfs.mcfsParams.showDistanceProgress = false;
           mcfs.mcfsParams.splits = 5;
           mcfs.mcfsParams.projections = projections;
@@ -152,40 +166,33 @@ public class MCFSRunner {
 
           mcfs.run();
 
+          try {
+            File[] files = tmpDir.listFiles();
+            for (File file : files) {
+              file.delete();
+            }
+          } catch (Exception e) {
+            e.printStackTrace();
+          }
           AttributesImportance ai = mcfs.globalStats.getAttrImportances()[0];
           for (int m = 0; m < ai.getMeasuresNumber(); m++) {
-            Ranking rank = ai.getTopSetRanking(m, generator.getColumns());
+            int columns = generator.getColumns();
+            if (contrastRatio > 0) {
+              columns = columns * 2;
+            }
+            Ranking rank = ai.getTopSetRanking(m, columns);
             String[] names = rank.getAttributesNames();
             String[] allLine = new String[names.length + 2];
             allLine[0] = String.valueOf(i);
             allLine[1] = rank.getMeasureName();
             System.arraycopy(names, 0, allLine, 2, names.length);
             all.writeNext(allLine);
-/*
-            String[] sigLine = new String[generator.getShifted() + 2];
-            sigLine[0] = String.valueOf(i);
-            sigLine[1] = rank.getMeasureName();
-
-            int index = 2;
-            for (int k = 0; k < names.length; k++) {
-              if (StringUtils.startsWith(names[k], "V_S_")) {
-                sigLine[index] = String.valueOf(k);
-                index++;
-              }
-            }
-            significant.writeNext(sigLine);
-            */
           }
           all.flush();
-//          significant.flush();
         }
       }
     } finally {
-      try {
-        all.close();
-      } finally {
-  //      significant.close();
-      }
+      all.close();
     }
   }
 
@@ -209,6 +216,9 @@ public class MCFSRunner {
 
     options.addOption(OptionBuilder.withArgName("contastRatio").hasArg().withType(PatternOptionBuilder.NUMBER_VALUE)
         .withDescription("contastRatio (default to 0)").create("contastRatio"));
+
+    options.addOption(OptionBuilder.withArgName("profile").hasArg().withType(PatternOptionBuilder.STRING_VALUE)
+        .withDescription("MVariantProfile").create("profile"));
 
     options.addOption(OptionBuilder.withDescription("skip calculations, only create files").withLongOpt("skip")
         .create("skip"));
