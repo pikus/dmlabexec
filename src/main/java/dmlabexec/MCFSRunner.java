@@ -29,7 +29,6 @@ import dmLab.container.saver.Array2File;
 public class MCFSRunner {
 
   public static void main(String argv[]) throws Exception {
-    argv = new String[] {"--start", "1",  "--end", "100", "--projections", "3000", "--profile", "N_50_DELTA_05_RO_04"};
     CommandLineParser parser = new PosixParser();
     CommandLine line = null;
     Options options = createOptions();
