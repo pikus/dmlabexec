@@ -44,8 +44,18 @@ public enum MVariantProfile {
 
   public static void main(String args[]) {
     System.out.println("Constants:");
+    long seed = System.currentTimeMillis();
     for (MVariantProfile profile : MVariantProfile.values()) {
-      System.out.println("java -classpath dmlabexec-1.0.0-SNAPSHOT-jar-with-dependencies.jar dmlabexec.MCFSRunner --start 1 --end 100 --projections 3000 --profile " + profile.name());
+      for (int i = 1; i <= 100; i++) {
+        StringBuilder command = new StringBuilder("java -classpath dmlabexec-1.0.0-SNAPSHOT-jar-with-dependencies.jar dmlabexec.MCFSRunner ");
+        command.append(" --seed " + seed);
+        command.append(" --start " + i);
+        command.append(" --end " + i);
+        command.append(" --projections 3000 ");
+        command.append(" --profile " + profile.name());
+        System.out.println(command);
+        seed = seed + 1;
+      }
     }
   }
 

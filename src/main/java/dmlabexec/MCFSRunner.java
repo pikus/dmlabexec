@@ -100,26 +100,31 @@ public class MCFSRunner {
 
     String tst = DateFormatUtils.format(Calendar.getInstance(), "yyyy-MM-dd-HH-mm");
 
+    String dirElement = String.valueOf(initialSeed);
+    if (profile != null) {
+      dirElement = profile.name();
+    }
+
 
     File tmpRoot = new File("tmp" + File.separator + tst);
     if (!tmpRoot.exists()) {
       tmpRoot.mkdirs();
     }
-    File tmp = new File(tmpRoot, String.valueOf(initialSeed));
+    File tmp = new File(tmpRoot, dirElement);
     tmp.mkdirs();
 
-    File daneRoot = new File("dane" + File.separator + tst);
+    File daneRoot = new File("dane");
     if (!daneRoot.exists()) {
       daneRoot.mkdirs();
     }
-    File dane = new File(daneRoot, String.valueOf(initialSeed));
+    File dane = new File(daneRoot, dirElement);
     dane.mkdirs();
 
     try (FileWriter writer = new FileWriter(new File(dane, "opis.txt"))) {
       writer.write(opis);
     }
 
-    CSVWriter all = new CSVWriter(new FileWriter(new File(dane, "exp_" + initialSeed + "_" + tst + "_all.csv")), CSVWriter.DEFAULT_SEPARATOR,
+    CSVWriter all = new CSVWriter(new FileWriter(new File(daneRoot, "exp_" + dirElement + "_all.csv"), true), CSVWriter.DEFAULT_SEPARATOR,
         CSVWriter.NO_QUOTE_CHARACTER);
 
     try {
